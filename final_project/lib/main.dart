@@ -78,12 +78,15 @@ class PPKMForm extends StatefulWidget {
   const PPKMForm({Key? key}) : super(key: key);
 
   @override
-  _PPKMFormState createState() => _PPKMFormState();
+  _PPKMFormState createState() {
+    return _PPKMFormState();
+  }
 }
 
 class _PPKMFormState extends State<PPKMForm> {
   late GaussianNB gnb;
-  Map<String, double> input = {};
+  late Map<String, dynamic> y;
+  List<double> input = List.filled(8, 0);
   List inputVar = [
     'Kasus Konfirmasi per 100.000 penduduk/ minggu',
     'Rawat Inap RS per 100.000 penduduk/ minggu',
@@ -97,12 +100,21 @@ class _PPKMFormState extends State<PPKMForm> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   int output = 0;
 
-  _PPKMFormState() {
+  @override
+  void initState() {
+    super.initState();
     loadModel("assets/gnb.json").then(
       (x) => {
-        gnb = GaussianNB.fromMap(json.decode(x)),
+        y = Map.from(json.decode(x)),
+        gnb = GaussianNB(
+          List<double>.from(y['class_prior_']),
+          List<List<dynamic>>.from(y['sigma_']),
+          List<List<dynamic>>.from(y['theta_']),
+          [1, 2, 3],
+        )
       },
     );
+    print('model loaded');
   }
 
   @override
@@ -123,21 +135,24 @@ class _PPKMFormState extends State<PPKMForm> {
                       return 'required';
                     }
 
-                    input.addAll({inputVar[index]: double.parse(value)});
+                    input[index] = double.parse(value);
 
                     return null;
                   })),
           ElevatedButton(
             onPressed: () {
-              print('pressed');
               _formKey.currentState?.validate();
 
-              output = gnb.predict(List.from(input.values));
-              print(output);
+              output = gnb.predict(input);
+              showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(content: Text(output.toString()));
+                },
+              );
             },
             child: Text('Hitung'),
           ),
-          Text(output.toString())
         ],
       ),
     );
